@@ -27,6 +27,7 @@ class Game:
         self.power_up_active = False
         self.power_up_timer = 0
         self.boost_duration = 3000
+        self.particles = []
 
         self.animation_index = 1
         self.animation_timer = 0
@@ -104,6 +105,16 @@ class Game:
                 "rect": pygame.Rect(x, y, 130, 130),
                 "img": img
             })
+
+    def spawn_particles(self, x, y, color=(255, 255, 0)):
+        for _ in range(15):  # Number of particles
+            self.particles.append(Particle(x, y, color))
+
+    def update_particles(self):
+        for particle in self.particles[:]:
+            particle.update()
+            if not particle.is_alive():
+                self.particles.remove(particle)
     
     def fade_out_menu(self, duration=500):
         fade_surface = pygame.Surface((self.WIDTH, self.HEIGHT))
@@ -242,6 +253,7 @@ class Game:
         # Check trash collisions
         for trash in self.trash_items[:]:
             if self.player_pos.colliderect(trash["rect"]):
+                self.spawn_particles(trash["rect"].centerx, trash["rect"].centery, (255, 255, 0))
                 self.trash_items.remove(trash)
                 self.score += 1
                 self.broom_sweep_sound.play()
@@ -249,6 +261,8 @@ class Game:
         # Check power-up collisions
         for power_up in self.power_ups[:]:
             if self.player_pos.colliderect(power_up["rect"]):
+                color = (144, 238, 144) if power_up["img"] == self.shawarma_img else (255, 165, 0)
+                self.spawn_particles(power_up["rect"].centerx, power_up["rect"].centery, color)
                 self.power_ups.remove(power_up)
                 self.power_up_active = True
                 self.power_up_timer = pygame.time.get_ticks()
@@ -338,6 +352,7 @@ class Game:
         while running:
             self.screen.fill((0, 0, 0))
             dt = self.clock.tick(60)
+            self.update_particles()
             
             # Event handling
             for event in pygame.event.get():
@@ -366,10 +381,36 @@ class Game:
                 
                 # Draw game elements
                 self.draw_game_screen()
+
+                for particle in self.particles:
+                    particle.draw(self.screen)
             
             pygame.display.flip()
         
         pygame.quit()
+
+class Particle:
+    def __init__(self, x, y, color, lifetime=500):
+        self.x = x
+        self.y = y
+        self.radius = random.randint(4, 8)
+        self.color = color
+        self.lifetime = lifetime  # in milliseconds
+        self.spawn_time = pygame.time.get_ticks()
+        self.vel_x = random.uniform(-2, 2)
+        self.vel_y = random.uniform(-2, 2)
+
+    def update(self):
+        self.x += self.vel_x
+        self.y += self.vel_y
+        self.radius = max(0, self.radius - 0.2)  # shrink over time
+
+    def draw(self, screen):
+        if self.radius > 0:
+            pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), int(self.radius))
+
+    def is_alive(self):
+        return pygame.time.get_ticks() - self.spawn_time < self.lifetime
 
 if __name__ == "__main__":
     game = Game()
