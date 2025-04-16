@@ -54,15 +54,14 @@ class Game:
         font_path = os.path.join('assets', 'fonts', 'PressStart2P-Regular.ttf')
         self.font = pygame.font.Font(font_path, 50)
 
-        self.broom_sweep_sound = pygame.mixer.Sound(os.path.join(self.ASSETS_PATH, "broom_sweep.mp3"))
+        self.broom_sweep_sound = pygame.mixer.Sound(os.path.join(self.ASSETS_PATH, "sound effects", "broom_sweep.mp3"))
+        self.pickup_sound = pygame.mixer.Sound(os.path.join(self.ASSETS_PATH, "sound effects", "pick-up.mp3"))
         
-
         self.student_walk_frames = [
             pygame.transform.scale(pygame.image.load(os.path.join(self.ASSETS_PATH, "student", f"walk{i}.png")), (180, 180))
             for i in range(1, 4)
         ]
         
-        # Power-up images
         self.shawarma_img = pygame.transform.scale(pygame.image.load(os.path.join(self.ASSETS_PATH, "powerups", "shawarma.png")), (130, 130))
         self.lemon_img = pygame.transform.scale(pygame.image.load(os.path.join(self.ASSETS_PATH, "powerups", "lemon.png")), (130, 130))
         
@@ -254,6 +253,7 @@ class Game:
                 self.power_up_active = True
                 self.power_up_timer = pygame.time.get_ticks()
                 self.player_speed = self.boosted_speed
+                self.pickup_sound.play()
         
         # Check if game completed
         if self.score == 8 and self.end_time is None:
