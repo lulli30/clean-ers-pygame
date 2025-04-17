@@ -4,50 +4,72 @@ import os
 import cv2
 import time
 
+class Particle:
+    def __init__(self, x, y, color, lifetime=500):
+        self.x = x
+        self.y = y
+        self.radius = random.randint(4, 8)
+        self.color = color
+        self.lifetime = lifetime
+        self.spawn_time = pygame.time.get_ticks()
+        self.vel_x = random.uniform(-2, 2)
+        self.vel_y = random.uniform(-2, 2)
+
+    def update(self):
+        self.x += self.vel_x
+        self.y += self.vel_y
+        self.radius = max(0, self.radius - 0.2)
+
+    def draw(self, screen):
+        if self.radius > 0:
+            pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), int(self.radius))
+
+    def is_alive(self):
+        return pygame.time.get_ticks() - self.spawn_time < self.lifetime
+
 class Game:
+    WIDTH, HEIGHT = 1600, 900
+    PLAYER_SIZE = 180
+    PICKUP_SIZE = 130
+    FLASH_DURATION = 100
+    ANIMATION_DELAY = 100
+    BOOST_DURATION = 3000
+    DEFAULT_SPEED = 4
+    BOOSTED_SPEED = 8
+    
     def __init__(self):
         pygame.init()
         pygame.mixer.init()
 
-        self.WIDTH, self.HEIGHT = 1600, 900
         self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
         pygame.display.set_caption("CLEAN Ers")
-
         self.clock = pygame.time.Clock()
+
         self.game_running = False
         self.score = 0
         self.start_time = None
         self.end_time = None
         self.elapsed_time = 0
 
-        self.player_pos = pygame.Rect(100, 100, 180, 180)
-        self.player_speed = 4
-        self.boosted_speed = 8
-        
-        self.power_up_active = False
-        self.power_up_timer = 0
-        self.boost_duration = 3000
-        self.particles = []
-
-        self.flash_alpha = 0
-        self.flash_duration = 100
-        self.flash_start_time = None
-
+        self.player_pos = pygame.Rect(100, 100, self.PLAYER_SIZE, self.PLAYER_SIZE)
+        self.player_speed = self.DEFAULT_SPEED
         self.animation_index = 1
         self.animation_timer = 0
-        self.animation_delay = 100
-        
-        self.load_assets()
 
-        self.create_obstacles()
-        self.spawn_trash_items()
-        self.spawn_power_ups()
+        self.power_up_active = False
+        self.power_up_timer = 0
+
+        self.particles = []
+        self.flash_alpha = 0
+        self.flash_start_time = None
 
         self.exit_button_rect = pygame.Rect(600, 677, 390, 80)
         self.start_button_rect = pygame.Rect(590, 520, 400, 100)
-
         self.default_cursor = pygame.SYSTEM_CURSOR_ARROW
         self.hand_cursor = pygame.SYSTEM_CURSOR_HAND
+
+        self.load_assets()
+        self.init_game_elements()
     
     def load_assets(self):
         self.ASSETS_PATH = "assets"
@@ -58,23 +80,36 @@ class Game:
 
         font_path = os.path.join('assets', 'fonts', 'PressStart2P-Regular.ttf')
         self.font = pygame.font.Font(font_path, 50)
+        self.small_font = pygame.font.Font(font_path, 24)
 
         self.broom_sweep_sound = pygame.mixer.Sound(os.path.join(self.ASSETS_PATH, "sound effects", "broom_sweep.mp3"))
         self.pickup_sound = pygame.mixer.Sound(os.path.join(self.ASSETS_PATH, "sound effects", "pick-up.mp3"))
-        
+
         self.student_walk_frames = [
-            pygame.transform.scale(pygame.image.load(os.path.join(self.ASSETS_PATH, "student", f"walk{i}.png")), (180, 180))
+            pygame.transform.scale(pygame.image.load(os.path.join(self.ASSETS_PATH, "student", f"walk{i}.png")), 
+                                   (self.PLAYER_SIZE, self.PLAYER_SIZE))
             for i in range(1, 4)
         ]
-        
-        self.shawarma_img = pygame.transform.scale(pygame.image.load(os.path.join(self.ASSETS_PATH, "powerups", "shawarma.png")), (130, 130))
-        self.lemon_img = pygame.transform.scale(pygame.image.load(os.path.join(self.ASSETS_PATH, "powerups", "lemon.png")), (130, 130))
-        
-        # Trash images
+
+        self.shawarma_img = pygame.transform.scale(
+            pygame.image.load(os.path.join(self.ASSETS_PATH, "powerups", "shawarma.png")), 
+            (self.PICKUP_SIZE, self.PICKUP_SIZE)
+        )
+        self.lemon_img = pygame.transform.scale(
+            pygame.image.load(os.path.join(self.ASSETS_PATH, "powerups", "lemon.png")), 
+            (self.PICKUP_SIZE, self.PICKUP_SIZE)
+        )
+
         self.trash_imgs = [
-            pygame.transform.scale(pygame.image.load(os.path.join(self.ASSETS_PATH, "trash", f"trash{i}.png")), (130, 130))
+            pygame.transform.scale(pygame.image.load(os.path.join(self.ASSETS_PATH, "trash", f"trash{i}.png")), 
+                                  (self.PICKUP_SIZE, self.PICKUP_SIZE))
             for i in range(1, 5)
         ]
+    
+    def init_game_elements(self):
+        self.create_obstacles()
+        self.spawn_trash_items()
+        self.spawn_power_ups()
     
     def create_obstacles(self):
         self.obstacles = [
@@ -95,7 +130,7 @@ class Game:
             x = random.randint(50, self.WIDTH - 100)
             y = random.randint(50, self.HEIGHT - 100)
             self.trash_items.append({
-                "rect": pygame.Rect(x, y, 130, 130),
+                "rect": pygame.Rect(x, y, self.PICKUP_SIZE, self.PICKUP_SIZE),
                 "img": random.choice(self.trash_imgs)
             })
     
@@ -106,20 +141,20 @@ class Game:
             y = random.randint(50, self.HEIGHT - 100)
             img = random.choice([self.shawarma_img, self.lemon_img])
             self.power_ups.append({
-                "rect": pygame.Rect(x, y, 130, 130),
+                "rect": pygame.Rect(x, y, self.PICKUP_SIZE, self.PICKUP_SIZE),
                 "img": img
             })
-
+    
     def spawn_particles(self, x, y, color=(255, 255, 0)):
-        for _ in range(15):  # Number of particles
+        for _ in range(15):
             self.particles.append(Particle(x, y, color))
-
+    
     def update_particles(self):
         for particle in self.particles[:]:
             particle.update()
             if not particle.is_alive():
                 self.particles.remove(particle)
-
+    
     def start_flash(self):
         self.flash_alpha = 255
         self.flash_start_time = pygame.time.get_ticks()
@@ -181,7 +216,7 @@ class Game:
             frame_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
             
             self.screen.blit(frame_surface, (0, 0))
-            skip_text = self.font.render("Press ESC to skip...", True, (255, 165, 0))
+            skip_text = self.small_font.render("Press ESC to skip...", True, (255, 165, 0))
             self.screen.blit(skip_text, (20, 20))
             pygame.display.update()
             pygame.time.delay(int(1000 / fps))
@@ -213,60 +248,56 @@ class Game:
         self.spawn_trash_items()
         self.spawn_power_ups()
         self.power_up_active = False
-        self.player_speed = 4
-        pygame.time.delay(200)  # Simple debounce to avoid instant re-click
+        self.player_speed = self.DEFAULT_SPEED
+        pygame.time.delay(200)
     
     def handle_player_movement(self):
+        if self.score >= 8:
+            return False
+            
+        keys = pygame.key.get_pressed()
         moving = False
-        if self.score < 8:
-            keys = pygame.key.get_pressed()
-            
-            old_pos = self.player_pos.copy()  # Save current position
-            
-            if keys[pygame.K_LEFT]:
-                self.player_pos.x -= self.player_speed
-                moving = True
-            if keys[pygame.K_RIGHT]:
-                self.player_pos.x += self.player_speed
-                moving = True
-            if keys[pygame.K_UP]:
-                self.player_pos.y -= self.player_speed
-                moving = True
-            if keys[pygame.K_DOWN]:
-                self.player_pos.y += self.player_speed
-                moving = True
-            
-            # Clamp to screen
-            self.player_pos.clamp_ip(pygame.Rect(0, 0, self.WIDTH, self.HEIGHT))
-            
-            # Check collision with obstacles
-            for obstacle in self.obstacles:
-                if self.player_pos.colliderect(obstacle):
-                    self.player_pos = old_pos  # Revert position if collided
-                    break
+        old_pos = self.player_pos.copy()
+        
+        if keys[pygame.K_LEFT]:
+            self.player_pos.x -= self.player_speed
+            moving = True
+        if keys[pygame.K_RIGHT]:
+            self.player_pos.x += self.player_speed
+            moving = True
+        if keys[pygame.K_UP]:
+            self.player_pos.y -= self.player_speed
+            moving = True
+        if keys[pygame.K_DOWN]:
+            self.player_pos.y += self.player_speed
+            moving = True
         
         self.player_pos.clamp_ip(pygame.Rect(0, 0, self.WIDTH, self.HEIGHT))
+
+        for obstacle in self.obstacles:
+            if self.player_pos.colliderect(obstacle):
+                self.player_pos = old_pos
+                break
+        
         return moving
     
     def update_animation(self, moving, dt):
         if moving:
             self.animation_timer += dt
-            if self.animation_timer >= self.animation_delay:
+            if self.animation_timer >= self.ANIMATION_DELAY:
                 self.animation_index = (self.animation_index + 1) % len(self.student_walk_frames)
                 self.animation_timer = 0
         else:
             self.animation_index = 1
     
     def handle_collisions(self):
-        # Check trash collisions
         for trash in self.trash_items[:]:
             if self.player_pos.colliderect(trash["rect"]):
                 self.spawn_particles(trash["rect"].centerx, trash["rect"].centery, (255, 255, 0))
                 self.trash_items.remove(trash)
                 self.score += 1
                 self.broom_sweep_sound.play()
-        
-        # Check power-up collisions
+
         for power_up in self.power_ups[:]:
             if self.player_pos.colliderect(power_up["rect"]):
                 color = (144, 238, 144) if power_up["img"] == self.shawarma_img else (255, 165, 0)
@@ -275,77 +306,69 @@ class Game:
                 self.power_up_active = True
                 self.start_flash()
                 self.power_up_timer = pygame.time.get_ticks()
-                self.player_speed = self.boosted_speed
+                self.player_speed = self.BOOSTED_SPEED
                 self.pickup_sound.play()
-        
-        # Check if game completed
+
         if self.score == 8 and self.end_time is None:
             self.end_time = time.time()
             self.elapsed_time = self.end_time - self.start_time
     
     def update_power_up_status(self):
-        if self.power_up_active and pygame.time.get_ticks() - self.power_up_timer > self.boost_duration:
+        if self.power_up_active and pygame.time.get_ticks() - self.power_up_timer > self.BOOST_DURATION:
             self.power_up_active = False
-            self.player_speed = 4
+            self.player_speed = self.DEFAULT_SPEED
     
     def draw_menu_screen(self):
         self.screen.blit(self.menu_img, (0, 0))
     
     def draw_game_screen(self):
-        # Draw map
         self.screen.blit(self.map_img, (0, 0))
-        
-        # Draw player
-        self.screen.blit(self.student_walk_frames[self.animation_index], (self.player_pos.x, self.player_pos.y))
-        
-        # Draw trash items
+
+        self.screen.blit(self.student_walk_frames[self.animation_index], 
+                        (self.player_pos.x, self.player_pos.y))
+
         for trash in self.trash_items:
             self.screen.blit(trash["img"], (trash["rect"].x, trash["rect"].y))
-        
-        # Draw power-ups
+
         for power_up in self.power_ups:
             self.screen.blit(power_up["img"], (power_up["rect"].x, power_up["rect"].y))
-        
-        # Update and draw time
+
         if self.start_time and self.end_time is None:
             self.elapsed_time = time.time() - self.start_time
         
         time_display = self.font.render(f"Time: {self.elapsed_time:.2f}s", True, (255, 165, 0))
         self.screen.blit(time_display, (30, 30))
 
-        if self.flash_alpha > 0:
-            flash_surface = pygame.Surface((1600, 900))  # Match your screen resolution
-            flash_surface.fill((255, 255, 255))          # White flash
-            flash_surface.set_alpha(self.flash_alpha)
-            self.screen.blit(flash_surface, (0, 0))
+        self.draw_flash_effect()
 
-            # Reduce alpha gradually
-            if pygame.time.get_ticks() - self.flash_start_time > self.flash_duration:
-                self.flash_alpha = max(0, self.flash_alpha - 25)
-        
-        # Draw score board if game completed
         if self.score == 8:
             self.draw_score_board()
     
+    def draw_flash_effect(self):
+        if self.flash_alpha > 0:
+            flash_surface = pygame.Surface((self.WIDTH, self.HEIGHT))
+            flash_surface.fill((255, 255, 255))
+            flash_surface.set_alpha(self.flash_alpha)
+            self.screen.blit(flash_surface, (0, 0))
+
+            if pygame.time.get_ticks() - self.flash_start_time > self.FLASH_DURATION:
+                self.flash_alpha = max(0, self.flash_alpha - 25)
+    
     def draw_score_board(self):
         score_board_rect = self.score_board_img.get_rect(center=(self.WIDTH // 2, self.HEIGHT // 2))
-        
-        # Render the number of trash collected
+
         trash_collected_text = self.font.render(f"{self.score}/8", True, (255, 165, 0))
         text_rect = trash_collected_text.get_rect(center=(score_board_rect.centerx, score_board_rect.centery + 80))
-        
-        # Draw score board
+
         self.screen.blit(self.score_board_img, score_board_rect)
         self.screen.blit(trash_collected_text, text_rect)
-        
-        # Define Try Again button rect
+
         try_again_x = score_board_rect.left + 176
         try_again_y = score_board_rect.top + 555
         try_again_width = 484 - 176
         try_again_height = 635 - 555
         try_again_button_rect = pygame.Rect(try_again_x, try_again_y, try_again_width, try_again_height)
         
-        # Check for click on Try Again
         if pygame.mouse.get_pressed()[0]:
             if try_again_button_rect.collidepoint(pygame.mouse.get_pos()):
                 self.reset_game()
@@ -366,70 +389,54 @@ class Game:
         self.play_background_music()
         self.reset_game()
     
+    def process_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+            if not self.game_running and event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                if self.exit_button_rect.collidepoint(mouse_pos):
+                    pygame.quit()
+                    exit()
+                if self.start_button_rect.collidepoint(mouse_pos):
+                    self.start_game()
+        return True
+    
+    def update(self, dt):
+        if self.game_running:
+            moving = self.handle_player_movement()
+            self.update_animation(moving, dt)
+            self.handle_collisions()
+            self.update_power_up_status()
+    
+    def render(self):
+        self.screen.fill((0, 0, 0))
+        
+        if not self.game_running:
+            self.draw_menu_screen()
+        else:
+            self.draw_game_screen()
+
+            for particle in self.particles:
+                particle.draw(self.screen)
+        
+        pygame.display.flip()
+    
     def run(self):
         running = True
         while running:
-            self.screen.fill((0, 0, 0))
             dt = self.clock.tick(60)
             self.update_particles()
             
-            # Event handling
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                if not self.game_running and event.type == pygame.MOUSEBUTTONDOWN:
-                    mouse_pos = pygame.mouse.get_pos()
-                    if self.exit_button_rect.collidepoint(mouse_pos):
-                        pygame.quit()
-                        exit()
-                    if self.start_button_rect.collidepoint(mouse_pos):
-                        self.start_game()
-            
-            # Update cursor
-            self.handle_cursor()
-            
-            # Draw appropriate screen
-            if not self.game_running:
-                self.draw_menu_screen()
-            else:
-                # Handle game mechanics
-                moving = self.handle_player_movement()
-                self.update_animation(moving, dt)
-                self.handle_collisions()
-                self.update_power_up_status()
-                
-                # Draw game elements
-                self.draw_game_screen()
+            running = self.process_events()
 
-                for particle in self.particles:
-                    particle.draw(self.screen)
-            
-            pygame.display.flip()
+            self.handle_cursor()
+
+            self.update(dt)
+
+            self.render()
         
         pygame.quit()
-
-class Particle:
-    def __init__(self, x, y, color, lifetime=500):
-        self.x = x
-        self.y = y
-        self.radius = random.randint(4, 8)
-        self.color = color
-        self.lifetime = lifetime  # in milliseconds
-        self.spawn_time = pygame.time.get_ticks()
-        self.vel_x = random.uniform(-2, 2)
-        self.vel_y = random.uniform(-2, 2)
-
-    def update(self):
-        self.x += self.vel_x
-        self.y += self.vel_y
-        self.radius = max(0, self.radius - 0.2)  # shrink over time
-
-    def draw(self, screen):
-        if self.radius > 0:
-            pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), int(self.radius))
-
-    def is_alive(self):
-        return pygame.time.get_ticks() - self.spawn_time < self.lifetime
 
 if __name__ == "__main__":
     game = Game()
