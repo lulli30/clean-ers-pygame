@@ -29,6 +29,10 @@ class Game:
         self.boost_duration = 3000
         self.particles = []
 
+        self.flash_alpha = 0
+        self.flash_duration = 100
+        self.flash_start_time = None
+
         self.animation_index = 1
         self.animation_timer = 0
         self.animation_delay = 100
@@ -115,6 +119,10 @@ class Game:
             particle.update()
             if not particle.is_alive():
                 self.particles.remove(particle)
+
+    def start_flash(self):
+        self.flash_alpha = 255
+        self.flash_start_time = pygame.time.get_ticks()
     
     def fade_out_menu(self, duration=500):
         fade_surface = pygame.Surface((self.WIDTH, self.HEIGHT))
@@ -265,6 +273,7 @@ class Game:
                 self.spawn_particles(power_up["rect"].centerx, power_up["rect"].centery, color)
                 self.power_ups.remove(power_up)
                 self.power_up_active = True
+                self.start_flash()
                 self.power_up_timer = pygame.time.get_ticks()
                 self.player_speed = self.boosted_speed
                 self.pickup_sound.play()
@@ -303,6 +312,16 @@ class Game:
         
         time_display = self.font.render(f"Time: {self.elapsed_time:.2f}s", True, (255, 165, 0))
         self.screen.blit(time_display, (30, 30))
+
+        if self.flash_alpha > 0:
+            flash_surface = pygame.Surface((1600, 900))  # Match your screen resolution
+            flash_surface.fill((255, 255, 255))          # White flash
+            flash_surface.set_alpha(self.flash_alpha)
+            self.screen.blit(flash_surface, (0, 0))
+
+            # Reduce alpha gradually
+            if pygame.time.get_ticks() - self.flash_start_time > self.flash_duration:
+                self.flash_alpha = max(0, self.flash_alpha - 25)
         
         # Draw score board if game completed
         if self.score == 8:
