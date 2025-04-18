@@ -13,7 +13,7 @@ Built with **Pygame**, this project combines interactive gameplay, power-ups, an
 
 ## 📸 Preview
 
-![screenshot](path/to/screenshot.png) <!-- Add your game screenshot here -->
+![alt text](image.png)
 
 ## Features
 
