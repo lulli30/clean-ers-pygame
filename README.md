@@ -11,7 +11,7 @@ Built with **Pygame**, this project combines interactive gameplay, power-ups, an
 - Watch a short intro video before the game starts
 - Enjoy custom graphics and a classroom vibe
 
-## 📸 Preview
+## Preview
 
 ![alt text](image.png)
 
